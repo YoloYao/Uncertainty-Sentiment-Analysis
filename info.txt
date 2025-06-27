@@ -1,0 +1,36 @@
+/project-root/
+│
+├── data/
+│   ├── raw/
+│   │   └── semeval_dataset/  <-- 存放从官网下载的原始数据集 
+│   └── processed/
+│       ├── train.csv         <-- 存放预处理后的训练集
+│       ├── validation.csv    <-- 存放预处理后的验证集
+│       └── test.csv          <-- 存放预处理后的测试集
+│
+├── notebooks/
+│   ├── 1_data_exploration.ipynb        <-- 用于数据探索和可视化
+│   └── 5_results_visualization.ipynb   <-- 用于分析和可视化最终实验结果 
+│
+├── src/
+│   ├── __init__.py
+│   ├── config.py                       <-- 存放所有配置，如学习率、模型名称、路径等
+│   ├── dataset.py                      <-- 定义 PyTorch Dataset 和 DataLoader 
+│   ├── model.py                        <-- 定义您的 DistilBERT 基线模型 
+│   ├── train.py                        <-- 核心训练脚本
+│   ├── evaluate.py                     <-- 评估模型性能和不确定性的脚本
+│   └── uncertainty/
+│       ├── __init__.py
+│       ├── temperature_scaling.py      <-- 实现 Temperature Scaling 
+│       ├── mc_dropout.py               <-- 实现 MC Dropout 
+│       ├── conformal_prediction.py     <-- 实现 Conformal Prediction 
+│       └── sngp.py                     <-- 实现 SNGP 
+│
+├── saved_models/
+│   └── distilbert_baseline.pth         <-- 存放训练好的基线模型权重 
+│
+├── results/
+│   ├── figures/                        <-- 保存生成的图表 
+│   └── metrics/                        <-- 保存量化的实验结果（如 .csv 或 .json 文件）
+│
+└── requirements.txt                    <-- 列出项目所需的所有 Python 库 (e.g., torch, transformers, datasets, scikit-learn)
