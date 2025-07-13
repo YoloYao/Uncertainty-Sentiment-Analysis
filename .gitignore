@@ -1,5 +1,5 @@
 # Ignore the files submitted to Git
-#/data/
+/data/
 /saved_models/
 
 # Byte-compiled / optimized / DLL files
