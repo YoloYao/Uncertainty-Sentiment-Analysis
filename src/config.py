@@ -30,7 +30,7 @@ else:
 MAX_LEN = 128
 BATCH_SIZE = 32
 EPOCHS = 5 # 初始可以设置少一点，比如3-5个epoch
-LEARNING_RATE = 2e-5 # 对于Transformer微调，一个较小的学习率通常效果更好
+LEARNING_RATE = 1e-5 # 对于Transformer微调，一个较小的学习率通常效果更好
 
 # --- 数据集信息 ---
 # 标签映射，与之前预处理时一致
