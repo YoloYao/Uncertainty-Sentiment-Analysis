@@ -1,6 +1,7 @@
 # src/model.py
 
 import torch.nn as nn
+import config
 from transformers import DistilBertModel
 
 class SentimentClassifier(nn.Module):
@@ -8,7 +9,7 @@ class SentimentClassifier(nn.Module):
     情感分类器模型。
     该模型加载一个预训练的DistilBERT模型，并在其上添加一个自定义的分类头。
     """
-    def __init__(self, n_classes, model_name='distilbert-base-uncased'):
+    def __init__(self, n_classes, model_name=config.MODEL_NAME):
         super(SentimentClassifier, self).__init__()
         # 加载预训练的DistilBERT模型
         self.bert = DistilBertModel.from_pretrained(model_name)

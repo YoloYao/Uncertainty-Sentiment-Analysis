@@ -7,7 +7,7 @@ from transformers import DistilBertTokenizer
 class SentimentDataset(Dataset):
     """
     用于情感分析的PyTorch数据集类。
-    负责加载数据、使用tokenizer进行处理，并返回模型所需的格式。
+    负责加载数据、使用tokenizer进行处理, 并返回模型所需的格式。
     """
     def __init__(self, file_path, tokenizer, max_len):
         """
@@ -23,7 +23,7 @@ class SentimentDataset(Dataset):
         self.labels = self.df.sentiment.values
 
     def __len__(self):
-        """返回数据集的总长度"""
+        # 返回数据集的总长度
         return len(self.df)
 
     def __getitem__(self, idx):
