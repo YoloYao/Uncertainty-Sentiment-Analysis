@@ -1,7 +1,7 @@
 # src/model.py
 
 import torch.nn as nn
-import config
+from . import config
 from transformers import DistilBertModel
 
 class SentimentClassifier(nn.Module):

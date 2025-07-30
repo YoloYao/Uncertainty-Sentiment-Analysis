@@ -10,7 +10,7 @@ BASE_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # 这一
 DATA_PATH = os.path.join(BASE_PATH, "data")
 PROCESSED_DATA_PATH = os.path.join(DATA_PATH, "processed")
 SAVED_MODELS_PATH = os.path.join(BASE_PATH, "saved_models")
-
+SAVED_MODELS_NAME = 'best_model_state.bin'
 # 确保保存模型的目录存在
 os.makedirs(SAVED_MODELS_PATH, exist_ok=True)
 
