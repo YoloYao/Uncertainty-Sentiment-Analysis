@@ -55,19 +55,20 @@ def find_optimal_temperature(model, val_loader, device):
         loss.backward()
         return loss
 
-    print("\n正在优化温度参数 T...")
+    # 开始优化温度参数
     optimizer.step(eval_temp)
     optimal_temperature = temperature.item()
-    print(f"优化完成！最佳温度 T = {optimal_temperature:.4f}")
+    OPTIMAL_TEMPERATURE = optimal_temperature
+    
     return optimal_temperature
 
 
-# def apply_temperature(logits, temperature):
-#     """
-#     将学习到的温度应用到logits上。
+def apply_temperature(logits, temperature):
+    """
+    将学习到的温度应用到logits上。
     
-#     :param logits: 模型的原始输出logits。
-#     :param temperature: 优化得到的最优温度。
-#     :return: 校准后的概率分布。
-#     """
-#     return torch.softmax(logits / temperature, dim=1)
+    :param logits: 模型的原始输出logits。
+    :param temperature: 优化得到的最优温度。
+    :return: 校准后的概率分布。
+    """
+    return torch.softmax(logits / temperature, dim=1)

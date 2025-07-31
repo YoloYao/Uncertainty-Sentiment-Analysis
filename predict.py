@@ -1,6 +1,8 @@
 from transformers import DistilBertTokenizer
 from src.model import SentimentClassifier
 import src.uncertainty.temperature_scaling as temperature_scaling
+from src.uncertainty.temperature_scaling import get_temp_scaled_confidence
+from src.uncertainty.mc_dropout import predict_single_with_mc_dropout
 from src import config
 import torch
 import torch.nn.functional as F
@@ -66,27 +68,6 @@ def get_baseline_prediction(text, model, tokenizer, device):
     return prediction_class, confidence.item(), outputs
 
 
-def get_temp_scaled_prediction(logits, temperature):
-    """应用温度缩放来获取校准后的置信度"""
-    # T值是我们在验证集上找到的最优值
-    scaled_logits = logits / temperature
-    calibrated_probs = F.softmax(scaled_logits, dim=1)
-    calibrated_confidence, _ = torch.max(calibrated_probs, dim=1)
-
-    return calibrated_confidence.item()
-
-
-def get_mc_dropout_prediction(text, model, tokenizer, device, n_samples=30):
-    """
-    (占位函数) 应用MC Dropout获取预测和不确定性
-    注意：这需要您后续去实现
-    """
-    # 真正实现时，需要在这里开启模型的dropout层 (model.train())，
-    # 然后循环n_samples次进行预测，最后统计预测的均值和方差。
-    # print("  [提示] MC Dropout方法尚未实现。")
-    return "N/A", "N/A"
-
-
 def get_conformal_prediction(logits):
     """
     (占位函数) 应用保形预测获取预测集
@@ -116,7 +97,8 @@ def main():
 
     print("\nThe sentiment analysis prediction system has been launched.")
     print("Enter a sentence for analysis, enter 'exit' or 'exit' to end the program.")
-
+    print("="*54)
+    
     while True:
         user_input = input("\nPlease enter a sentence:")
         if user_input.lower() in ['exit', '退出']:
@@ -128,7 +110,7 @@ def main():
             user_input, model, tokenizer, device)
 
         print("\n" + "="*20 + " Analysis Result " + "="*20)
-        print(f"Emotion Prediction Results: {pred_class}")
+        print(f"\nEmotion Prediction Results: 【{pred_class}】\n")
         print("-" * 50)
 
         # --- 2. 各种UQ方法的结果 ---
@@ -137,16 +119,14 @@ def main():
         print(f"  - Confidence level: {base_confidence:.4f}")
 
         # Temperature Scaling
-        calibrated_conf = get_temp_scaled_prediction(
-            logits, temperature_scaling.OPTIMAL_TEMPERATURE)
+        calibrated_conf = get_temp_scaled_confidence(logits, temperature_scaling.OPTIMAL_TEMPERATURE)
         print(f"\n【Temperature Scaling (T={temperature_scaling.OPTIMAL_TEMPERATURE:.2f})】")
-        print(f"  - Post calibration reliability: {calibrated_conf:.4f}")
-
+        print(f"  - 校准后置信度: {calibrated_conf:.4f}")
         # MC Dropout
-        mc_pred, mc_uncertainty = get_mc_dropout_prediction(user_input, model, tokenizer, device)
+        mc_confidence, mc_uncertainty = predict_single_with_mc_dropout(user_input, model, tokenizer, device)
         print(f"\n【MC Dropout】")
-        print(f"  - 平均置信度: {mc_pred}")
-        print(f"  - 不确定性 (方差): {mc_uncertainty}")
+        print(f"  - 平均置信度: {mc_confidence:.4f}")
+        print(f"  - 不确定性 (方差): {mc_uncertainty:.6f}") # 方差通常很小，多显示几位小数
 
         # Conformal Prediction
         pred_set, set_size = get_conformal_prediction(logits)
