@@ -63,12 +63,20 @@ def find_optimal_temperature(model, val_loader, device):
     return optimal_temperature
 
 
-def apply_temperature(logits, temperature):
+# --- 用于计算校准后置信度的函数 ---
+def get_temp_scaled_confidence(logits, temperature):
     """
-    将学习到的温度应用到logits上。
+    将学习到的温度应用到logits上，并返回校准后的置信度。
     
     :param logits: 模型的原始输出logits。
     :param temperature: 优化得到的最优温度。
-    :return: 校准后的概率分布。
+    :return: 校准后的置信度 (float)。
     """
-    return torch.softmax(logits / temperature, dim=1)
+    # 应用温度缩放
+    scaled_logits = logits / temperature
+    # 计算校准后的概率
+    calibrated_probs = F.softmax(scaled_logits, dim=1)
+    # 提取最大概率作为置信度
+    calibrated_confidence, _ = torch.max(calibrated_probs, dim=1)
+    
+    return calibrated_confidence.item()
