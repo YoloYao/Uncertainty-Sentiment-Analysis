@@ -1,8 +1,10 @@
 from transformers import DistilBertTokenizer
 from src.model import SentimentClassifier
+from src.dataset import create_data_loader
 import src.uncertainty.temperature_scaling as temperature_scaling
 from src.uncertainty.temperature_scaling import get_temp_scaled_confidence
 from src.uncertainty.mc_dropout import predict_single_with_mc_dropout
+from src.uncertainty.conformal_prediction import find_conformal_threshold, get_conformal_set
 from src import config
 import torch
 import torch.nn.functional as F
@@ -44,49 +46,26 @@ def load_model_and_tokenizer():
 
 
 def get_baseline_prediction(text, model, tokenizer, device):
-    """获取基线模型的预测结果和原始置信度"""
+    """获取基线模型的预测结果、置信度、Logits和Probs"""
     encoded_text = tokenizer.encode_plus(
-        text,
-        max_length=config.MAX_LEN,
-        add_special_tokens=True,
-        return_token_type_ids=False,
-        padding='max_length',
-        return_attention_mask=True,
-        return_tensors='pt',
+        text, max_length=config.MAX_LEN, add_special_tokens=True,
+        return_token_type_ids=False, padding='max_length',
+        return_attention_mask=True, return_tensors='pt',
     )
-
     input_ids = encoded_text['input_ids'].to(device)
     attention_mask = encoded_text['attention_mask'].to(device)
-
     with torch.no_grad():
         outputs = model(input_ids, attention_mask)
+        # 计算softmax概率
         probs = F.softmax(outputs, dim=1)
-
-    confidence, prediction = torch.max(probs, dim=1)
-    prediction_class = config.CLASS_NAMES[prediction]
-
-    return prediction_class, confidence.item(), outputs
-
-
-def get_conformal_prediction(logits):
-    """
-    (占位函数) 应用保形预测获取预测集
-    注意：这需要您后续去实现
-    """
-    # 真正实现时，需要在这里实现保形预测的逻辑，计算预测集
-    # print("  [提示] Conformal Prediction方法尚未实现。")
-    return "{...}", "N/A"
-
-
-def get_sngp_prediction(text):
-    """
-    (占位函数) 使用SNGP模型进行预测
-    注意：这需要您后续去实现
-    """
-    # 真正实现时，需要在这里加载并运行SNGP模型
-    # print("  [提示] SNGP方法尚未实现。")
-    return "N/A", "N/A"
-
+    
+    # 从概率中获取置信度和预测类别索引
+    confidence, prediction_idx = torch.max(probs, dim=1)
+    # 将类别索引转换为类别名称
+    prediction_class = config.CLASS_NAMES[prediction_idx.item()]
+    
+    # 返回所有需要的值
+    return prediction_class, confidence.item(), outputs, probs
 
 # ==============================================================================
 # 3. 主函数
@@ -95,6 +74,16 @@ def main():
     """主执行函数"""
     model, tokenizer, device = load_model_and_tokenizer()
 
+    # 读取参数
+    OPTIMAL_TEMPERATURE = config.get_uq_param('temperature')
+    Q_HAT = config.get_uq_param('conformal_q_hat')
+    ALPHA = config.get_uq_param('conformal_alpha')
+
+    # 检查参数是否加载成功
+    if OPTIMAL_TEMPERATURE is None or Q_HAT is None or ALPHA is None:
+        print("Error: The necessary UQ parameters could not be loaded from uq-params.json, please check the file.")
+        return
+    
     print("\nThe sentiment analysis prediction system has been launched.")
     print("Enter a sentence for analysis, enter 'exit' or 'exit' to end the program.")
     print("="*54)
@@ -106,8 +95,7 @@ def main():
             break
 
         # --- 1. 基线模型预测 ---
-        pred_class, base_confidence, logits = get_baseline_prediction(
-            user_input, model, tokenizer, device)
+        pred_class, base_confidence, logits, probs = get_baseline_prediction(user_input, model, tokenizer, device)
 
         print("\n" + "="*20 + " Analysis Result " + "="*20)
         print(f"\nEmotion Prediction Results: 【{pred_class}】\n")
@@ -119,8 +107,8 @@ def main():
         print(f"  - Confidence level: {base_confidence:.4f}")
 
         # Temperature Scaling
-        calibrated_conf = get_temp_scaled_confidence(logits, temperature_scaling.OPTIMAL_TEMPERATURE)
-        print(f"\n【Temperature Scaling (T={temperature_scaling.OPTIMAL_TEMPERATURE:.2f})】")
+        calibrated_conf = get_temp_scaled_confidence(logits, OPTIMAL_TEMPERATURE)
+        print(f"\n【Temperature Scaling (T={OPTIMAL_TEMPERATURE:.2f})】")
         print(f"  - 校准后置信度: {calibrated_conf:.4f}")
         # MC Dropout
         mc_confidence, mc_uncertainty = predict_single_with_mc_dropout(user_input, model, tokenizer, device)
@@ -129,15 +117,16 @@ def main():
         print(f"  - 不确定性 (方差): {mc_uncertainty:.6f}") # 方差通常很小，多显示几位小数
 
         # Conformal Prediction
-        pred_set, set_size = get_conformal_prediction(logits)
-        print(f"\n【Conformal Prediction (Confidence level at 95%)】")
-        print(f"  - 预测集: {pred_set}")
+        pred_set_indices, set_size = get_conformal_set(probs, Q_HAT)
+        pred_set_names = {config.CLASS_NAMES[i] for i in pred_set_indices}
+        print(f"\n【Conformal Prediction (置信度 {1-ALPHA:.0%})】")
+        print(f"  - 预测集: {pred_set_names}")
         print(f"  - 预测集大小: {set_size}")
 
         # SNGP
-        sngp_pred, sngp_uncertainty = get_sngp_prediction(user_input)
-        print(f"\n【SNGP】")
-        print(f"  - Confidence level: {sngp_pred}")
+        # sngp_pred, sngp_uncertainty = get_sngp_prediction(user_input)
+        # print(f"\n【SNGP】")
+        # print(f"  - Confidence level: {sngp_pred}")
         # print(f"  - 不确定性: {sngp_uncertainty}")
 
         print("="*54)

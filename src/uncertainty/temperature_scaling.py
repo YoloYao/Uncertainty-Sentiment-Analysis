@@ -3,10 +3,8 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 from tqdm import tqdm
-
-# 从研究中得到的最佳温度T值
-OPTIMAL_TEMPERATURE = 1.2871
 
 def find_optimal_temperature(model, val_loader, device):
     """
@@ -58,7 +56,6 @@ def find_optimal_temperature(model, val_loader, device):
     # 开始优化温度参数
     optimizer.step(eval_temp)
     optimal_temperature = temperature.item()
-    OPTIMAL_TEMPERATURE = optimal_temperature
     
     return optimal_temperature
 
