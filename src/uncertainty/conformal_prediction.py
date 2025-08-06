@@ -46,19 +46,20 @@ def find_conformal_threshold(model, calib_loader, device, alpha):
 
 def get_conformal_set(probs, q_hat):
     """
-    根据给定的概率和阈值q_hat，生成预测集。
-    
-    :param probs: 模型的softmax概率输出 (torch.Tensor, 形状 [1, n_classes])
-    :param q_hat: 校准得到的阈值
-    :return: 预测集 (set), 预测集大小 (int)
+    (最终版)
+    根据概率和阈值q_hat，生成预测集，并返回集内各项的概率。
     """
-    # 预测集包含所有概率大于 (1 - q_hat) 的类别
-    pred_set_indices = np.where(probs.cpu().numpy() > (1 - q_hat))[1]
+    probs_np = probs.cpu().numpy().flatten()
+    pred_set_indices = np.where(probs_np > (1 - q_hat))[0]
     
     if len(pred_set_indices) == 0:
-        pred_set_indices = np.array([torch.argmax(probs).item()])
+        pred_set_indices = np.array([np.argmax(probs_np)])
         
-    return set(pred_set_indices), len(pred_set_indices)
+    # --- 新增：创建一个字典，存储预测集内每个类别的概率 ---
+    set_probs = {idx: probs_np[idx] for idx in pred_set_indices}
+    # --------------------------------------------------------
+        
+    return set(pred_set_indices), len(pred_set_indices), set_probs
 
 def get_softmax_outputs(data_loader, model, device):
     """获取模型在给定数据集上的Softmax概率输出"""

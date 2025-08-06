@@ -139,11 +139,25 @@ def main():
         print(f"  - Uncertainty (variance): {mc_uncertainty:.6f}") # 方差通常很小，多显示几位小数
 
         # Conformal Prediction
-        pred_set_indices, set_size = get_conformal_set(probs, Q_HAT)
+        pred_set_indices, set_size, set_probs = get_conformal_set(probs, Q_HAT)
         pred_set_names = {config.CLASS_NAMES[i] for i in pred_set_indices}
+        
         print(f"\n【Conformal Prediction (Confidence {1-ALPHA:.0%})】")
-        print(f"  - Prediction set: {pred_set_names}")
-        print(f"  - Prediction set size: {set_size}")
+        
+        if set_size == 1:
+            # 如果集合大小为1，这是一个明确的预测
+            single_pred_index = list(pred_set_indices)[0]
+            single_pred_confidence = set_probs[single_pred_index]
+            print(f"  - Predicting Status: Certain")
+            print(f"  - Prediction set: {pred_set_names}")
+            print(f"  - Confidence: {single_pred_confidence:.4f}")
+        else:
+            # 如果集合大小大于1，这是一个模糊的预测
+            print(f"  - Predicting Status: Ambiguous")
+            print(f"  - Prediction set: {pred_set_names}")
+            print("  - Probability of each category:")
+            for idx, prob in set_probs.items():
+                print(f"    - {config.CLASS_NAMES[idx]}: {prob:.4f}")
 
         # SNGP
         sngp_class, sngp_confidence = get_sngp_prediction(user_input, sngp_model, tokenizer, device)
