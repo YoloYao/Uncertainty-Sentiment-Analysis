@@ -48,7 +48,7 @@ def _load_uq_params():
     try:
         with open(UQ_PARAMS_PATH, 'r') as f:
             _UQ_PARAMS = json.load(f)
-        print(f"Uncertainty quantification method parameters have been successfully loaded.")
+        # print(f"Uncertainty quantification method parameters have been successfully loaded.")
     except FileNotFoundError:
         print(f"Warning: UQ parameter file not found: {UQ_PARAMS_PATH}. Some functions may not be available.")
         _UQ_PARAMS = {}
@@ -61,6 +61,15 @@ def get_uq_param(param_name):
     :return: 参数的值，如果找不到则返回 None。
     """
     return _UQ_PARAMS.get(param_name)
+
+def get_all_uq_params():
+    """
+    从已加载的参数中获取指定参数的值。
+    
+    :param param_name: (str) 参数名称。
+    :return: 参数的值，如果找不到则返回 None。
+    """
+    return _UQ_PARAMS
 
 def update_uq_params(**kwargs):
     """
