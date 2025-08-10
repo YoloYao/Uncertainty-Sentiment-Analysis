@@ -68,7 +68,7 @@ def get_mc_dropout_predictions(model, data_loader, n_samples, device):
     }
     
 # --- 用于预测单句话的函数 ---
-def predict_single_with_mc_dropout(text, model, tokenizer, device, n_samples=30):
+def predict_single_with_mc_dropout(text, model, tokenizer, device, n_samples):
     """
     使用MC Dropout预测单条文本，并返回置信度和不确定性。
     """

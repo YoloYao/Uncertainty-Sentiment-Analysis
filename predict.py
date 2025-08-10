@@ -133,7 +133,7 @@ def main():
         print(f"  - Post calibration confidence: {calibrated_conf:.4f}")
         
         # MC Dropout
-        mc_confidence, mc_uncertainty = predict_single_with_mc_dropout(user_input, baseline_model, tokenizer, device)
+        mc_confidence, mc_uncertainty = predict_single_with_mc_dropout(user_input, baseline_model, tokenizer, device, config.get_uq_param('mc_sampling_times'))
         print(f"\n【MC Dropout】")
         print(f"  - Average Confidence: {mc_confidence:.4f}")
         print(f"  - Uncertainty (variance): {mc_uncertainty:.6f}") # 方差通常很小，多显示几位小数
