@@ -1,20 +1,20 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-from transformers import DistilBertTokenizer
 
-# A class encapsulates the logic for loading and processing datasets
+
 class SentimentDataset(Dataset):
     """
-    用于情感分析的PyTorch数据集类。
-    负责加载数据、使用tokenizer进行处理, 并返回模型所需的格式。
+    PyTorch dataset class for sentiment analysis.
+    Load data, use tokenizer for processing, and return the format required by the model.
     """
+
     def __init__(self, file_path, tokenizer, max_len):
         """
-        初始化方法。
-        :param file_path: str, 数据文件路径 (例如 'data/processed/train.csv')
-        :param tokenizer: transformers.Tokenizer, 用于文本处理的tokenizer
-        :param max_len: int, 文本序列的最大长度
+        Initialization method
+        :param file_path: str, Data file path (e.g. 'data/processed/train.csv')
+        :param tokenizer: transformers.Tokenizer
+        :param max_len: int, Maximum length of text sequence
         """
         self.df = pd.read_csv(file_path)
         self.tokenizer = tokenizer
@@ -23,13 +23,12 @@ class SentimentDataset(Dataset):
         self.labels = self.df.sentiment.values
 
     def __len__(self):
-        # 返回数据集的总长度
+        # Return the total length of the dataset
         return len(self.df)
 
     def __getitem__(self, idx):
         """
-        根据索引获取单个数据样本。
-        这是模型训练时调用此类的核心方法。
+        Obtain a single data sample based on the index.
         """
         text = str(self.texts[idx])
         label = int(self.labels[idx])
@@ -51,8 +50,11 @@ class SentimentDataset(Dataset):
             'labels': torch.tensor(label, dtype=torch.long)
         }
 
-# 创建一个辅助函数来生成 DataLoader
+
 def create_data_loader(file_path, tokenizer, max_len, batch_size):
+    """
+    Method for generating DataLoader
+    """
     ds = SentimentDataset(
         file_path=file_path,
         tokenizer=tokenizer,

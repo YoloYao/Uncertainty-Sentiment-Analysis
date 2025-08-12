@@ -1,5 +1,3 @@
-# src/uncertainty/conformal_prediction.py
-
 import numpy as np
 from tqdm import tqdm
 import torch
