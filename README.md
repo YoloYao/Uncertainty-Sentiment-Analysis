@@ -1,8 +1,8 @@
-# Uncertainty-Sentiment-Analysis
-# 社交媒体情绪不确定性的定量分析 
+# Quantitative Analysis of Uncertainty in Social Media Sentiment
+# 社交媒体中情绪的不确定性量化分析 
 基于社交媒体评论的情绪分析场景，对基线模型进行调优，并基于基线模型开展4中不确定性量化方法的研究，得出量化结果后进行横向比较并提供可视化分析。项目结构参照info.txt。
 
-Based on the sentiment analysis scenario of social media comments, optimize the baseline model and conduct research on four uncertainty quantification methods based on the baseline model. After obtaining the quantification results, conduct horizontal comparison and provide visual analysis. The project structure is based on info. txt.
+Based on the sentiment analysis scenario of social media comments, optimize the baseline model and conduct research on four uncertainty quantification methods based on the baseline model. After obtaining the quantification results, conduct horizontal comparison and provide visual analysis. The project structure is based on info.txt.
 
 |  |  |
 |---|---|

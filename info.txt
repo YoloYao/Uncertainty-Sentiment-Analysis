@@ -1,4 +1,4 @@
-/project-root/
+/Uncertainty-Sentiment-Analysis/
 │
 ├── data/
 │   ├── raw/
@@ -35,6 +35,7 @@
 │   ├── distilbert_baseline.pth         <-- Store the weights of the trained baseline model
 │   └── sngp_best_model_state.bin       <-- Store the weights of the trained SNGP model 
 │
+├── img/                                <-- Store relevant images
 │
 ├── README.md                           <-- Introduction document
 ├── predict.py                          <-- Sentiment analysis application interface for input content
