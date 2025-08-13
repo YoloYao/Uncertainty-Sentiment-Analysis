@@ -2,7 +2,50 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import matplotlib.patches as mpatches
+import numpy as np
 from tqdm import tqdm
+
+
+def get_confidence_level(val_data_loader, device, model):
+    """
+    Get the confidence level of the current model (overconfidence or lack of confidence)
+
+    :param val_loader: Validation set data loader
+    :param device: Computing device
+    :param model: Trained model
+    :return: Average Confidence and Accuracy (float)
+    """
+    all_confidences = []
+    correct_predictions = 0
+    total_samples = 0
+
+    print("Calibrating the model before validation set evaluation...")
+    with torch.no_grad():
+        for d in tqdm(val_data_loader, desc="Diagnosing Calibration"):
+            input_ids = d["input_ids"].to(device)
+            attention_mask = d["attention_mask"].to(device)
+            labels = d["labels"].to(device)
+
+            # 1. 获取模型输出
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+
+            # 2. 计算概率和置信度
+            probabilities = F.softmax(outputs, dim=1)
+            confidences, predictions = torch.max(probabilities, 1)
+
+            # 3. 收集所有置信度
+            all_confidences.extend(confidences.cpu().numpy())
+
+            # 4. 累加正确预测的数量和总样本数
+            correct_predictions += torch.sum(predictions == labels).item()
+            total_samples += len(labels)
+
+    # 5. 计算最终指标
+    average_confidence = np.mean(all_confidences)
+    accuracy = correct_predictions / total_samples
+
+    return average_confidence, accuracy
 
 
 def find_optimal_temperature(model, val_loader, device):
@@ -12,7 +55,7 @@ def find_optimal_temperature(model, val_loader, device):
     :param model: Trained model
     :param val_loader: Validation set data loader
     :param device: Computing device
-    :return: Optimal temperature value (float)。
+    :return: Optimal temperature value (float)
     """
     model.eval()
 
@@ -76,3 +119,198 @@ def get_temp_scaled_confidence(logits, temperature):
     calibrated_confidence, _ = torch.max(calibrated_probs, dim=1)
 
     return calibrated_confidence.item()
+
+
+def get_temp_logits(test_data_loader, device, model):
+    """
+    Retrieve Logits on the test set
+
+    :param test_data_loader: Test set data loader
+    :param device: Computing device
+    :param model: Trained model
+    :return: test_logits and Labels
+    """
+    test_logits = []
+    test_labels = []
+    with torch.no_grad():
+        for d in tqdm(test_data_loader, desc="Testing"):
+            input_ids = d["input_ids"].to(device)
+            attention_mask = d["attention_mask"].to(device)
+            labels = d["labels"].to(device)
+
+            logits = model(input_ids=input_ids, attention_mask=attention_mask)
+            test_logits.append(logits)
+            test_labels.append(labels)
+
+    test_logits = torch.cat(test_logits)
+    test_labels = torch.cat(test_labels)
+
+    return test_logits, test_labels
+
+
+def calculate_ece_adaptive(probs, labels, n_bins):
+    """
+    Calculate the Expected Calibration Error (ECE)
+    """
+    # Find the maximum probability value of each sample as confidence level
+    confidences = np.max(probs, axis=1)
+    # Record accuracies
+    accuracies = (np.argmax(probs, axis=1) == labels)
+
+    # Sort all samples from low to high according to their confidence scores
+    sorted_indices = np.argsort(confidences)
+    confidences = confidences[sorted_indices]
+    accuracies = accuracies[sorted_indices]
+
+    ece = 0.0
+    # Calculate the average sample size for each sub box
+    samples_per_bin = len(confidences) / n_bins
+
+    for i in range(n_bins):
+        start_idx = int(i * samples_per_bin)
+        end_idx = int((i + 1) * samples_per_bin)
+
+        bin_confidences = confidences[start_idx:end_idx]
+        bin_accuracies = accuracies[start_idx:end_idx]
+
+        if len(bin_confidences) > 0:
+            avg_confidence = np.mean(bin_confidences)
+            accuracy = np.mean(bin_accuracies)
+            ece += np.abs(avg_confidence - accuracy)
+
+    return (ece / n_bins) * 100
+
+
+def plot_reliability_diagram_final(ax, probs, labels, title):
+    """
+    Draw a reliability chart (bar chart)
+    """
+    confidences = np.max(probs, axis=1)
+    accuracies = (np.argmax(probs, axis=1) == labels)
+    n_bins = 10
+
+    # Ensure that each box contains the same number of samples (10% of data)
+    bin_boundaries = np.percentile(
+        confidences, np.linspace(0, 100, n_bins + 1))
+
+    ece = calculate_ece_adaptive(probs, labels, n_bins)
+
+    # Draw diagonal dashed lines
+    ax.plot([0, 1], [0, 1], 'k--', zorder=2)
+
+    for i in range(n_bins):
+        # Filter out all samples with confidence levels falling within the current box boundary
+        in_bin = (confidences > bin_boundaries[i]) & (
+            confidences <= bin_boundaries[i+1])
+        # For the first box, it contains a confidence level equal to 0
+        if i == 0:
+            in_bin = (confidences >= bin_boundaries[i]) & (
+                confidences <= bin_boundaries[i+1])
+
+        prop_in_bin = np.mean(in_bin)
+
+        # Calculate the average accuracy and average confidence within the box
+        if prop_in_bin > 0:
+            accuracy_in_bin = np.mean(accuracies[in_bin])
+            avg_confidence_in_bin = np.mean(confidences[in_bin])
+
+            # Draw unequal width bar charts
+            bin_width = bin_boundaries[i+1] - bin_boundaries[i]
+            bin_center = bin_boundaries[i] + bin_width / 2
+
+            # Draw a blue column, height represents the true accuracy
+            ax.bar(
+                bin_center,
+                accuracy_in_bin,
+                width=bin_width,
+                color='blue',
+                edgecolor='black',
+                alpha=0.9,
+                zorder=1
+            )
+
+            gap = avg_confidence_in_bin - accuracy_in_bin
+            if gap > 0:
+                ax.bar(
+                    bin_center,
+                    gap,
+                    width=bin_width,
+                    bottom=accuracy_in_bin,
+                    color='red',
+                    edgecolor='red',
+                    alpha=0.3,
+                    hatch='//',
+                    zorder=1
+                )
+
+    ax.set_xlabel('Confidence', fontsize=14)
+    ax.set_ylabel('Accuracy', fontsize=14)
+    ax.set_title(title, fontsize=16)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.grid(True, linestyle='dotted')
+    ax.text(0.5, 0.1, f'ECE = {ece:.1f}%',
+            ha='center', va='center', fontsize=20,
+            bbox=dict(boxstyle='round,pad=0.5', fc='white', ec='black', lw=2))
+    output_patch = mpatches.Patch(
+        facecolor='blue', edgecolor='black', label='Outputs (Accuracy)')
+    gap_patch = mpatches.Patch(facecolor='red', edgecolor='red',
+                               alpha=0.3, hatch='//', label='Gap (Overconfidence)')
+    ax.legend(handles=[output_patch, gap_patch], loc='upper left', fontsize=12)
+
+
+def plot_reliability_diagram_adaptive(ax, probs, labels, title):
+    """
+    Draw a reliability chart (line chart)
+    """
+    confidences = np.max(probs, axis=1)
+    accuracies = (np.argmax(probs, axis=1) == labels)
+    n_bins = 10
+
+    # Sort by confidence level
+    sorted_indices = np.argsort(confidences)
+    confidences = confidences[sorted_indices]
+    accuracies = accuracies[sorted_indices]
+
+    samples_per_bin = len(confidences) / n_bins
+
+    bin_avg_conf = []
+    bin_accuracy = []
+
+    for i in range(n_bins):
+        start_idx = int(i * samples_per_bin)
+        end_idx = int((i + 1) * samples_per_bin)
+
+        bin_confidences = confidences[start_idx:end_idx]
+        bin_accuracies = accuracies[start_idx:end_idx]
+
+        if len(bin_confidences) > 0:
+            bin_avg_conf.append(np.mean(bin_confidences))
+            bin_accuracy.append(np.mean(bin_accuracies))
+
+    ece = calculate_ece_adaptive(probs, labels, n_bins)
+
+    ax.plot([0, 1], [0, 1], 'k--', zorder=1)
+
+    # Draw a line chart, as the width of the boxes varies, it is more appropriate to use a line chart
+    ax.plot(bin_avg_conf, bin_accuracy, 's-', color='blue',
+            label='Outputs (Accuracy)', zorder=2)
+
+    # Fill Gap
+    y_upper = np.maximum(bin_accuracy, bin_avg_conf)
+    y_lower = np.minimum(bin_accuracy, bin_avg_conf)
+    ax.fill_between(bin_avg_conf, y_lower, y_upper, color='red',
+                    alpha=0.3, label='Gap (Miscalibration)', zorder=1)
+
+    ax.set_xlabel('Confidence', fontsize=14)
+    ax.set_ylabel('Accuracy', fontsize=14)
+    ax.set_title(title, fontsize=16)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.grid(True, linestyle='dotted')
+
+    ax.text(0.5, 0.1, f'ECE = {ece:.1f}%',
+            ha='center', va='center', fontsize=20,
+            bbox=dict(boxstyle='round,pad=0.5', fc='white', ec='black', lw=2))
+
+    ax.legend(loc='upper left', fontsize=12)
