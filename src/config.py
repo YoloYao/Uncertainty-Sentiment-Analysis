@@ -212,4 +212,4 @@ def analyze_features_by_group(df, uncertainty_col, group_name=""):
             print(
                 f"\n--- Analysis Group: {name} (contains 0 samples in total) ---")
 
-    print("="*(54 + len(group_name)))
+    print("="*(64 + len(group_name)))

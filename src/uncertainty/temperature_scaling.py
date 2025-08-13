@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 import numpy as np
 from tqdm import tqdm
 
@@ -146,6 +147,26 @@ def get_temp_logits(test_data_loader, device, model):
     test_labels = torch.cat(test_labels)
 
     return test_logits, test_labels
+
+
+def get_adaptive_bins(probs, labels, n_bins):
+    """
+    Get the confidence and accuracy of adaptive binning
+    """
+    confidences = np.max(probs, axis=1)
+    accuracies = (np.argmax(probs, axis=1) == labels)
+    sorted_indices = np.argsort(confidences)
+    confidences, accuracies = confidences[sorted_indices], accuracies[sorted_indices]
+    samples_per_bin = len(confidences) / n_bins
+    bin_avg_conf, bin_accuracy = [], []
+    for i in range(n_bins):
+        start_idx = int(i * samples_per_bin)
+        end_idx = int((i + 1) * samples_per_bin)
+        if start_idx == end_idx:
+            continue
+        bin_avg_conf.append(np.mean(confidences[start_idx:end_idx]))
+        bin_accuracy.append(np.mean(accuracies[start_idx:end_idx]))
+    return bin_avg_conf, bin_accuracy
 
 
 def calculate_ece_adaptive(probs, labels, n_bins):
@@ -314,3 +335,46 @@ def plot_reliability_diagram_adaptive(ax, probs, labels, title):
             bbox=dict(boxstyle='round,pad=0.5', fc='white', ec='black', lw=2))
 
     ax.legend(loc='upper left', fontsize=12)
+
+
+def plot_reliability_diagram_line_style(ax, probs, labels, title, color):
+    """
+    Draw a reliability chart (line chart with color)
+    """
+    n_bins = 10
+    ece = calculate_ece_adaptive(probs, labels, n_bins)
+    avg_conf, accuracy_in_bin = get_adaptive_bins(probs, labels, n_bins)
+
+    avg_conf_np = np.array(avg_conf)
+    accuracy_in_bin_np = np.array(accuracy_in_bin)
+
+    ax.plot([0, 1], [0, 1], 'k--', zorder=2)
+    ax.plot(avg_conf_np, accuracy_in_bin_np, 'o-',
+            color=color, label='Outputs (Accuracy)', zorder=3)
+
+    ax.fill_between(
+        avg_conf_np,
+        accuracy_in_bin_np,
+        avg_conf_np,
+        where=avg_conf_np > accuracy_in_bin_np,
+        color='red',
+        alpha=0.3,
+        interpolate=True,
+        label='Gap (Miscalibration)',
+        zorder=1
+    )
+
+    ax.set_xlabel('Confidence', fontsize=12)
+    ax.set_ylabel('Accuracy', fontsize=12)
+    ax.set_title(title, fontsize=16)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.grid(True, linestyle='dotted')
+    ax.text(0.5, 0.1, f'ECE = {ece:.1f}%', ha='center', va='center', fontsize=18,
+            bbox=dict(boxstyle='round,pad=0.5', fc='white', ec='black', lw=2))
+
+    output_patch = mlines.Line2D(
+        [], [], color=color, marker='o', label='Outputs (Accuracy)')
+    gap_patch = mpatches.Patch(
+        color='red', alpha=0.3, label='Gap (Miscalibration)')
+    ax.legend(handles=[output_patch, gap_patch], loc='upper left', fontsize=10)

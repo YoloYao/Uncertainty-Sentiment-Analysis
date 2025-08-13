@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as F
+import seaborn as sns
+import numpy as np
 from tqdm import tqdm
 from src import config
 
@@ -105,3 +107,34 @@ def predict_single_with_mc_dropout(text, model, tokenizer, device, n_samples):
     uncertainty_score = variance[prediction_idx].item()
 
     return mean_confidence.item(), uncertainty_score
+
+
+def plot_uncertainty_distribution(ax, scores, correct_mask, title):
+    """
+    在指定的matplotlib轴上绘制“不确定性 vs 错误”的KDE图。
+    :param ax: Matplotlib subplot axis
+    :param scores: 该方法的不确定性分数数组
+    :param correct_mask: 标记预测是否正确的布尔数组
+    :param title: 子图的标题
+    """
+    # 绘制正确预测的分布 (蓝色)
+    sns.kdeplot(scores[correct_mask], ax=ax, label='Correct Predictions',
+                fill=True, alpha=0.6, linewidth=2)
+    # 绘制错误预测的分布 (橙色)
+    sns.kdeplot(scores[~correct_mask], ax=ax, label='Incorrect Predictions',
+                fill=True, alpha=0.6, linewidth=2)
+
+    # 计算并绘制两条分布的平均值垂直线
+    mean_correct = np.mean(scores[correct_mask])
+    mean_incorrect = np.mean(scores[~correct_mask])
+    ax.axvline(mean_correct, color='blue', linestyle='--',
+               label=f'Mean (Correct) = {mean_correct:.3f}')
+    ax.axvline(mean_incorrect, color='darkorange', linestyle='--',
+               label=f'Mean (Incorrect) = {mean_incorrect:.3f}')
+
+    # 美化子图
+    ax.set_title(title, fontsize=14)
+    ax.set_xlabel("Uncertainty (Predictive Entropy)")
+    ax.set_ylabel("Density")
+    ax.legend()
+    ax.grid(True, linestyle='dotted')
