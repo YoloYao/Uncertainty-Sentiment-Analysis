@@ -28,21 +28,21 @@ def get_confidence_level(val_data_loader, device, model):
             attention_mask = d["attention_mask"].to(device)
             labels = d["labels"].to(device)
 
-            # 1. 获取模型输出
+            # 1. Get model output
             outputs = model(input_ids=input_ids, attention_mask=attention_mask)
 
-            # 2. 计算概率和置信度
+            # 2. Calculate probability and confidence
             probabilities = F.softmax(outputs, dim=1)
             confidences, predictions = torch.max(probabilities, 1)
 
-            # 3. 收集所有置信度
+            # 3. Collect all confidence levels
             all_confidences.extend(confidences.cpu().numpy())
 
-            # 4. 累加正确预测的数量和总样本数
+            # 4. Accumulate the number of correct predictions and the total sample size
             correct_predictions += torch.sum(predictions == labels).item()
             total_samples += len(labels)
 
-    # 5. 计算最终指标
+    # 5. Calculate the final indicator
     average_confidence = np.mean(all_confidences)
     accuracy = correct_predictions / total_samples
 

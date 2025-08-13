@@ -87,13 +87,13 @@ def get_conformal_set(probs, q_hat):
 
 def conformal_predict(calib_probs, calib_labels, test_probs, alpha):
     """
-    手动实现保形预测。
+    Complete conformal prediction implementation process
 
-    :param calib_probs: 校准集的softmax概率输出 (numpy array)
-    :param calib_labels: 校准集的真实标签 (numpy array)
-    :param test_probs: 测试集的softmax概率输出 (numpy array)
-    :param alpha: 允许的错误率 (e.g., 0.05 for 95% confidence)
-    :return: 预测集 (list of sets), 预测集大小 (numpy array)
+    :param calib_probs: Softmax probability output of validation set (numpy array)
+    :param calib_labels: Authentic labels of the validation set (numpy array)
+    :param test_probs: Softmax probability output of the test set (numpy array)
+    :param alpha: Allowable error rate (e.g., 0.05 for 95% confidence)
+    :return: prediction set (list of sets), prediction Set size (numpy array)
     """
 
     # a. Calculate the  non conformance score on the validation set
@@ -134,28 +134,28 @@ def evaluate_conformal(true_labels, pred_sets):
 
 def plot_coverage_guarantee_binned(ax, desired_confidences, actual_coverages, title):
     """
-    以柱状图和Gap的形式绘制覆盖率保证图。
+    Coverage bar chart.
     """
     n_bins = 10
-    # 我们只关注我们感兴趣的置信度范围，例如 0.5 到 1.0
+    # Set the confidence range for attention, such as 0.5 to 1.0
     bin_boundaries = np.linspace(0.5, 1.0, n_bins + 1)
 
-    ax.plot([0.5, 1], [0.5, 1], 'k--', zorder=2)  # 绘制对角虚线
+    ax.plot([0.5, 1], [0.5, 1], 'k--', zorder=2)
 
     for i in range(n_bins):
-        # 找到落入当前箱内的数据点
+        # Data points falling into the current box
         in_bin_mask = (desired_confidences >= bin_boundaries[i]) & (
             desired_confidences < bin_boundaries[i+1])
 
         if np.sum(in_bin_mask) > 0:
-            # 计算箱内的平均期望置信度和平均实际覆盖率
+            # Calculate the average expected confidence and average actual coverage within the box
             avg_desired_conf = np.mean(desired_confidences[in_bin_mask])
             avg_actual_coverage = np.mean(actual_coverages[in_bin_mask])
 
             bin_width = bin_boundaries[i+1] - bin_boundaries[i]
             bin_center = bin_boundaries[i] + bin_width / 2
 
-            # 绘制蓝色柱子 (实际覆盖率)
+            # Draw blue columns (actual coverage)
             ax.bar(
                 bin_center,
                 avg_actual_coverage,
@@ -166,10 +166,10 @@ def plot_coverage_guarantee_binned(ax, desired_confidences, actual_coverages, ti
                 zorder=1
             )
 
-            # 绘制红色误差区域 (Gap)
-            # Gap = 期望值 - 实际值。在这里我们只展示 Under-coverage 的情况
+            # Draw the red error zone (Gap)
             gap = avg_desired_conf - avg_actual_coverage
-            if gap > 0:  # 只在实际覆盖率低于期望时显示Gap (Under-coverage)
+            # Only display Gap (Under coverage) when the actual coverage is lower than expected
+            if gap > 0:
                 ax.bar(
                     bin_center,
                     gap,
@@ -189,7 +189,6 @@ def plot_coverage_guarantee_binned(ax, desired_confidences, actual_coverages, ti
     ax.set_ylim(0.5, 1)
     ax.grid(True, linestyle='dotted')
 
-    # 添加图例
     output_patch = mpatches.Patch(
         facecolor='blue', edgecolor='black', label='Empirical Coverage')
     gap_patch = mpatches.Patch(facecolor='red', edgecolor='red',
